@@ -339,99 +339,12 @@
       font-size:16px;
     }
   }
-
-
-  .board-tools{
-    display:flex;
-    gap:8px;
-    margin-top:10px;
-  }
-
-  .board-tools button{
-    flex:1;
-    font-size:15px;
-    padding:10px;
-    background:#365f7a;
-    box-shadow:0 4px 0 #254457;
-  }
-
-  .fullscreen-board{
-    position:fixed !important;
-    inset:0 !important;
-    z-index:9999 !important;
-    width:100vw !important;
-    height:100vh !important;
-    max-height:none !important;
-    border-radius:0 !important;
-    border:0 !important;
-    background:#8db76d !important;
-  }
-
-  body.board-fullscreen{
-    overflow:hidden;
-    background:#000;
-  }
-
-  body.board-fullscreen .app{
-    display:block;
-    width:100vw;
-    height:100vh;
-    min-height:100vh;
-    background:#8db76d;
-  }
-
-  body.board-fullscreen header,
+body.board-fullscreen header,
   body.board-fullscreen .side,
-  body.board-fullscreen .board-tools{
-    display:none !important;
-  }
-
-  body.board-fullscreen main{
-    display:block;
-    padding:0;
-    margin:0;
-    width:100vw;
-    height:100vh;
-  }
-
-  body.board-fullscreen .game-wrap{
-    width:100vw;
-    height:100vh;
-  }
-
-  body.board-fullscreen canvas.fullscreen-board{
-    display:block !important;
-    position:fixed !important;
-    inset:0 !important;
-    width:100vw !important;
-    height:100vh !important;
-    max-width:none !important;
-    max-height:none !important;
-    object-fit:contain !important;
-    background:#8db76d !important;
-    z-index:9999 !important;
-  }
-
-  .fullscreen-exit-floating{
-    display:none;
-    position:fixed;
-    top:max(12px, env(safe-area-inset-top));
-    right:12px;
-    z-index:10000;
-    width:auto;
-    padding:10px 14px;
-    border-radius:999px;
-    background:rgba(35,35,35,.85);
-    box-shadow:none;
-    font-size:14px;
-  }
-
-  body.board-fullscreen .fullscreen-exit-floating{
-    display:block;
-  }
-
-
-  .controls button{
+  body.board-fullscreen
+body.board-fullscreen canvas
+body.board-fullscreen
+.controls button{
     min-width:64px;
     min-height:58px;
     font-size:26px;
@@ -448,7 +361,6 @@
       height:60px;
     }
   }
-
 
   .under-board-controls{
     margin-top:12px;
@@ -524,14 +436,9 @@
   <main>
     <section class="game-wrap">
       <canvas id="game" width="800" height="600"></canvas>
-      <div class="board-tools">
-        <button id="fitScreenBtn">⛶ Aumentar tabuleiro</button>
-        <button id="exitScreenBtn" class="hidden">✕ Sair da tela cheia</button>
-      </div>
-      <div class="under-board-controls">
-        <div class="under-board-title">Controles</div>
-        <div class="under-board-help">Use as setas abaixo para mover o personagem.</div>
-
+<div class="under-board-controls">
+        <div class="under-board-title">Controls</div>
+        <div class="under-board-help">Use the arrows below to move the character.</div>
 
       <div class="controls">
         <span></span><button data-dir="up">▲</button><span></span>
@@ -551,7 +458,7 @@
       </div>
 
       <strong>Controls</strong>
-      <p>On mobile, the direction buttons are now under the board for easier use.</p>
+      <p>Use the direction buttons under the board for easier play on mobile.</p>
 
       <div class="legend">
         <div><span class="icon">🧑‍🌾</span> You, the shepherd</div>
@@ -562,13 +469,11 @@
         <div><span class="icon">🏠</span> Barn</div>
       </div>
 
-      <div class="mobile-tip">📱 Use as setas grandes para direcionar o personagem, um quadrado de cada vez.</div><div id="message">Collect the hay first. It will help you pass the wooden fence.</div>
+      <div class="mobile-tip">📱 Use the large arrows to move the character one square at a time.</div><div id="message">Collect the hay first. It will help you pass the wooden fence.</div>
       <button class="secondary" id="restart">Restart game</button>
     </aside>
   </main>
 </div>
-<button id="floatingExitBtn" class="fullscreen-exit-floating">✕ Sair</button>
-
 <div class="modal" id="startModal">
   <div class="modal-card">
     <h2>Save the Sheep!</h2>
@@ -901,8 +806,6 @@ document.querySelectorAll('[data-dir]').forEach(btn=>{
   });
 });
 
-
-
 document.querySelectorAll('[data-dir]').forEach(btn => {
   btn.addEventListener('touchstart', (e) => {
     e.preventDefault();
@@ -913,36 +816,6 @@ document.querySelectorAll('[data-dir]').forEach(btn => {
     if(d==='right') tryMove(1,0);
   }, { passive: false });
 });
-
-
-
-const fitScreenBtn = document.getElementById('fitScreenBtn');
-const exitScreenBtn = document.getElementById('exitScreenBtn');
-
-const floatingExitBtn = document.getElementById('floatingExitBtn');
-
-function enterBoardFullscreen(){
-  canvas.classList.add('fullscreen-board');
-  document.body.classList.add('board-fullscreen');
-  exitScreenBtn.classList.remove('hidden');
-
-  // CSS fullscreen is more reliable on mobile than the browser fullscreen API.
-  window.scrollTo(0,0);
-  setTimeout(draw,100);
-}
-
-function exitBoardFullscreen(){
-  canvas.classList.remove('fullscreen-board');
-  document.body.classList.remove('board-fullscreen');
-  exitScreenBtn.classList.add('hidden');
-  setTimeout(draw,100);
-}
-
-fitScreenBtn.addEventListener('click', enterBoardFullscreen);
-exitScreenBtn.addEventListener('click', exitBoardFullscreen);
-floatingExitBtn.addEventListener('click', exitBoardFullscreen);
-
-
 document.getElementById('startBtn').addEventListener('click',startGame);
 document.getElementById('restart').addEventListener('click',()=>{reset();startGame();});
 document.getElementById('playAgain').addEventListener('click',()=>{reset();startGame();});
