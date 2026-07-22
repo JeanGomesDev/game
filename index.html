@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Save the Sheep!</title>
 <style>
   :root{
@@ -202,6 +202,184 @@
   @media (max-width:840px){
     main{grid-template-columns:1fr}
   }
+
+  html, body{
+    overscroll-behavior:none;
+  }
+
+  canvas{
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+
+  .mobile-tip{
+    display:none;
+    margin-top:10px;
+    padding:10px;
+    border-radius:10px;
+    background:#eef4ff;
+    border:1px solid #a8b9df;
+    font-size:14px;
+    line-height:1.35;
+  }
+
+  @media (max-width:840px){
+    body{
+      padding:0;
+      background:#f4ead8;
+    }
+
+    .app{
+      width:100%;
+      min-height:100vh;
+      border:0;
+      border-radius:0;
+      box-shadow:none;
+    }
+
+    header{
+      padding:12px 14px;
+      gap:8px;
+    }
+
+    h1{
+      font-size:26px;
+    }
+
+    .subtitle{
+      font-size:14px;
+    }
+
+    .status{
+      width:100%;
+      gap:6px;
+    }
+
+    .pill{
+      flex:1;
+      min-width:95px;
+      text-align:center;
+      padding:7px 8px;
+      font-size:13px;
+    }
+
+    main{
+      display:flex;
+      flex-direction:column;
+      padding:10px;
+      gap:10px;
+    }
+
+    canvas{
+      border-width:3px;
+      border-radius:12px;
+      max-height:48vh;
+      object-fit:contain;
+    }
+
+    .side{
+      padding:12px;
+      border-radius:14px;
+    }
+
+    .side h2,
+    .side > p,
+    .legend{
+      display:none;
+    }
+
+    .objective{
+      margin:0 0 8px;
+      padding:9px;
+      font-size:14px;
+    }
+
+    .mobile-tip{
+      display:block;
+    }
+
+    .controls{
+      grid-template-columns:repeat(3,72px);
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .controls button{
+      width:72px;
+      height:62px;
+      padding:0;
+      font-size:28px;
+      border-radius:16px;
+      touch-action:manipulation;
+    }
+
+    #message{
+      min-height:48px;
+      margin-top:10px;
+      padding:10px;
+      font-size:14px;
+    }
+
+    button.secondary{
+      padding:10px;
+      margin-top:10px;
+      font-size:15px;
+    }
+
+    .modal-card{
+      padding:20px;
+    }
+
+    .modal h2{
+      font-size:34px;
+    }
+
+    .modal p{
+      font-size:16px;
+    }
+  }
+
+
+  .board-tools{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+
+  .board-tools button{
+    flex:1;
+    font-size:15px;
+    padding:10px;
+    background:#365f7a;
+    box-shadow:0 4px 0 #254457;
+  }
+
+  .fullscreen-board{
+    position:fixed !important;
+    inset:0 !important;
+    z-index:9999 !important;
+    width:100vw !important;
+    height:100vh !important;
+    max-height:none !important;
+    border-radius:0 !important;
+    border:0 !important;
+    background:#8db76d !important;
+  }
+
+  body.board-fullscreen{
+    overflow:hidden;
+    background:#000;
+  }
+
+  body.board-fullscreen .app{
+    display:none;
+  }
+
+  body.board-fullscreen canvas.fullscreen-board{
+    display:block;
+  }
+
 </style>
 </head>
 <body>
@@ -221,6 +399,10 @@
   <main>
     <section class="game-wrap">
       <canvas id="game" width="800" height="600"></canvas>
+      <div class="board-tools">
+        <button id="fitScreenBtn">⛶ Tabuleiro em tela cheia</button>
+        <button id="exitScreenBtn" class="hidden">✕ Sair da tela cheia</button>
+      </div>
     </section>
 
     <aside class="side">
@@ -242,6 +424,8 @@
         <div><span class="icon">🐺</span> Avoid the wolf</div>
         <div><span class="icon">🏠</span> Barn</div>
       </div>
+
+      <div class="mobile-tip">📱 Toque em qualquer quadrado livre do tabuleiro. O personagem caminhará sozinho até lá. Você também pode usar as setas.</div>
 
       <div class="controls">
         <span></span><button data-dir="up">▲</button><span></span>
@@ -307,6 +491,8 @@ let timerId = null;
 let wolfTick = 0;
 let playerMoves = 0;
 let shieldUsed = false;
+let autoMoveTimer = null;
+let isAutoMoving = false;
 let message = document.getElementById('message');
 
 function parseMap(){
@@ -337,6 +523,9 @@ function reset(){
   wolfTick=0;
   playerMoves=0;
   shieldUsed=false;
+  clearInterval(autoMoveTimer);
+  autoMoveTimer=null;
+  isAutoMoving=false;
   document.getElementById('saved').textContent=saved;
   document.getElementById('dogStatus').textContent='Not found';
   document.getElementById('time').textContent=timeLeft;
@@ -363,8 +552,9 @@ function isWall(x,y){
   return false;
 }
 
-function tryMove(dx,dy){
+function tryMove(dx,dy,fromAuto=false){
   if(!running || gameOver) return;
+  if(isAutoMoving && !fromAuto) return;
   const nx=player.x+dx, ny=player.y+dy;
 
   if(fence && nx===fence.x && ny===fence.y && !fence.open){
@@ -573,7 +763,9 @@ document.addEventListener('keydown',e=>{
 });
 
 document.querySelectorAll('[data-dir]').forEach(btn=>{
-  btn.addEventListener('click',()=>{
+  btn.addEventListener('click',(e)=>{
+    // On touch devices, movement is handled by touchstart.
+    if ('ontouchstart' in window) return;
     const d=btn.dataset.dir;
     if(d==='up') tryMove(0,-1);
     if(d==='down') tryMove(0,1);
@@ -581,6 +773,199 @@ document.querySelectorAll('[data-dir]').forEach(btn=>{
     if(d==='right') tryMove(1,0);
   });
 });
+
+
+let touchStartX = 0;
+let touchStartY = 0;
+let lastTouchMove = 0;
+
+canvas.addEventListener('touchstart', (e) => {
+  if (!running || gameOver) return;
+  const touch = e.changedTouches[0];
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  e.preventDefault();
+}, { passive: false });
+
+
+document.querySelectorAll('[data-dir]').forEach(btn => {
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const d = btn.dataset.dir;
+    if(d==='up') tryMove(0,-1);
+    if(d==='down') tryMove(0,1);
+    if(d==='left') tryMove(-1,0);
+    if(d==='right') tryMove(1,0);
+  }, { passive: false });
+});
+
+
+
+function getCanvasTileFromEvent(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = Math.floor(((clientX - rect.left) * scaleX) / TILE);
+  const y = Math.floor(((clientY - rect.top) * scaleY) / TILE);
+  return {x, y};
+}
+
+function findPath(start, goal){
+  if(isWall(goal.x, goal.y)) return null;
+
+  const queue = [{x:start.x, y:start.y}];
+  const visited = Array.from({length:ROWS}, () => Array(COLS).fill(false));
+  const prev = Array.from({length:ROWS}, () => Array(COLS).fill(null));
+  visited[start.y][start.x] = true;
+
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+
+  while(queue.length){
+    const current = queue.shift();
+    if(current.x === goal.x && current.y === goal.y) break;
+
+    for(const [dx,dy] of dirs){
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+      if(nx<0 || nx>=COLS || ny<0 || ny>=ROWS || visited[ny][nx]) continue;
+
+      // Closed fence can still be used if the player already has hay.
+      const blockedByFence = fence && nx===fence.x && ny===fence.y && !fence.open && !hasHay;
+      if(grid[ny][nx] === '#' || blockedByFence) continue;
+
+      visited[ny][nx] = true;
+      prev[ny][nx] = current;
+      queue.push({x:nx,y:ny});
+    }
+  }
+
+  if(!visited[goal.y][goal.x]) return null;
+
+  const path = [];
+  let cur = goal;
+  while(cur.x !== start.x || cur.y !== start.y){
+    path.push(cur);
+    cur = prev[cur.y][cur.x];
+  }
+  path.reverse();
+  return path;
+}
+
+function moveToTile(targetX, targetY){
+  if(!running || gameOver || isAutoMoving) return;
+  if(targetX===player.x && targetY===player.y) return;
+
+  const path = findPath(player, {x:targetX,y:targetY});
+  if(!path || !path.length){
+    message.textContent = 'Não existe um caminho livre até esse quadrado.';
+    return;
+  }
+
+  isAutoMoving = true;
+  message.textContent = 'O pastor está caminhando até o quadrado escolhido...';
+
+  autoMoveTimer = setInterval(() => {
+    if(!running || gameOver || !path.length){
+      clearInterval(autoMoveTimer);
+      autoMoveTimer = null;
+      isAutoMoving = false;
+      return;
+    }
+
+    const next = path.shift();
+    const dx = next.x - player.x;
+    const dy = next.y - player.y;
+    tryMove(dx, dy, true);
+
+    if(!path.length){
+      clearInterval(autoMoveTimer);
+      autoMoveTimer = null;
+      isAutoMoving = false;
+    }
+  }, 170);
+}
+
+canvas.addEventListener('click', (e) => {
+  if('ontouchstart' in window) return;
+  const tile = getCanvasTileFromEvent(e.clientX, e.clientY);
+  moveToTile(tile.x, tile.y);
+});
+
+canvas.addEventListener('touchend', (e) => {
+  if(!running || gameOver) return;
+
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
+  const distance = Math.hypot(dx,dy);
+
+  // A short touch is treated as selecting a square.
+  if(distance < 22){
+    const tile = getCanvasTileFromEvent(touch.clientX, touch.clientY);
+    moveToTile(tile.x, tile.y);
+    e.preventDefault();
+    return;
+  }
+
+  if(Math.abs(dx) > Math.abs(dy)){
+    tryMove(dx > 0 ? 1 : -1, 0);
+  }else{
+    tryMove(0, dy > 0 ? 1 : -1);
+  }
+
+  e.preventDefault();
+}, { passive:false });
+
+const fitScreenBtn = document.getElementById('fitScreenBtn');
+const exitScreenBtn = document.getElementById('exitScreenBtn');
+
+function enterBoardFullscreen(){
+  canvas.classList.add('fullscreen-board');
+  document.body.classList.add('board-fullscreen');
+  exitScreenBtn.classList.remove('hidden');
+
+  if(canvas.requestFullscreen){
+    canvas.requestFullscreen().catch(()=>{});
+  }else if(canvas.webkitRequestFullscreen){
+    canvas.webkitRequestFullscreen();
+  }
+
+  setTimeout(draw,100);
+}
+
+function exitBoardFullscreen(){
+  canvas.classList.remove('fullscreen-board');
+  document.body.classList.remove('board-fullscreen');
+  exitScreenBtn.classList.add('hidden');
+
+  if(document.fullscreenElement && document.exitFullscreen){
+    document.exitFullscreen().catch(()=>{});
+  }else if(document.webkitFullscreenElement && document.webkitExitFullscreen){
+    document.webkitExitFullscreen();
+  }
+
+  setTimeout(draw,100);
+}
+
+fitScreenBtn.addEventListener('click', enterBoardFullscreen);
+exitScreenBtn.addEventListener('click', exitBoardFullscreen);
+
+document.addEventListener('fullscreenchange', ()=>{
+  if(!document.fullscreenElement){
+    canvas.classList.remove('fullscreen-board');
+    document.body.classList.remove('board-fullscreen');
+    exitScreenBtn.classList.add('hidden');
+  }
+});
+
+document.addEventListener('webkitfullscreenchange', ()=>{
+  if(!document.webkitFullscreenElement){
+    canvas.classList.remove('fullscreen-board');
+    document.body.classList.remove('board-fullscreen');
+    exitScreenBtn.classList.add('hidden');
+  }
+});
+
 
 document.getElementById('startBtn').addEventListener('click',startGame);
 document.getElementById('restart').addEventListener('click',()=>{reset();startGame();});
