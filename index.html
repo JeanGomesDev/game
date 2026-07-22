@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Save the Sheep!</title>
+<style>
+  :root{
+    --bg:#f4ead8;
+    --ink:#2f2a24;
+    --green:#6f9b5a;
+    --green-dark:#3f6b3d;
+    --cream:#fff8e9;
+    --wood:#9a6538;
+    --danger:#9f3434;
+    --gold:#e1b650;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(circle at top left, rgba(255,255,255,.9), transparent 35%),
+      linear-gradient(135deg,#f7efdf,#e5d3b4);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .app{
+    width:min(1100px,100%);
+    background:rgba(255,248,233,.92);
+    border:4px solid #3f3a32;
+    border-radius:24px;
+    box-shadow:0 18px 50px rgba(58,43,25,.22);
+    overflow:hidden;
+  }
+
+  header{
+    padding:20px 24px;
+    background:linear-gradient(90deg,#385c3a,#6f9b5a);
+    color:white;
+    display:flex;
+    gap:16px;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+  }
+
+  h1{
+    margin:0;
+    font-size:clamp(26px,4vw,46px);
+    letter-spacing:.5px;
+  }
+
+  .subtitle{opacity:.9;margin-top:4px}
+
+  .status{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .pill{
+    background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.35);
+    padding:8px 12px;
+    border-radius:999px;
+    font-weight:700;
+  }
+
+  main{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 300px;
+    gap:20px;
+    padding:20px;
+  }
+
+  .game-wrap{
+    min-width:0;
+  }
+
+  canvas{
+    width:100%;
+    aspect-ratio: 4 / 3;
+    display:block;
+    border-radius:18px;
+    border:4px solid #4f4639;
+    background:#8db76d;
+    image-rendering:pixelated;
+  }
+
+  .side{
+    background:#fffaf0;
+    border:2px solid #d4bea0;
+    border-radius:18px;
+    padding:16px;
+  }
+
+  .side h2{margin:0 0 8px}
+  .side p{line-height:1.45}
+
+  .objective{
+    background:#f3e3bd;
+    border-left:6px solid var(--gold);
+    padding:12px;
+    border-radius:10px;
+    margin:12px 0;
+  }
+
+  .legend{
+    display:grid;
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .legend div{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .icon{
+    width:28px;height:28px;
+    display:grid;place-items:center;
+    border-radius:8px;
+    background:#efe0c5;
+    font-size:20px;
+  }
+
+  .controls{
+    display:grid;
+    grid-template-columns:repeat(3,56px);
+    gap:8px;
+    justify-content:center;
+    margin-top:16px;
+  }
+
+  button{
+    border:0;
+    border-radius:12px;
+    background:#446d45;
+    color:white;
+    font-weight:800;
+    font-size:18px;
+    padding:12px;
+    cursor:pointer;
+    box-shadow:0 4px 0 #2f4f31;
+    transition:.12s;
+  }
+
+  button:active{transform:translateY(3px);box-shadow:0 1px 0 #2f4f31}
+  button.secondary{
+    width:100%;
+    margin-top:14px;
+    background:#8a5834;
+    box-shadow:0 4px 0 #644023;
+  }
+
+  #message{
+    min-height:56px;
+    margin-top:14px;
+    padding:12px;
+    border-radius:12px;
+    background:#edf5e8;
+    border:1px solid #a8c49a;
+    font-weight:700;
+  }
+
+  .modal{
+    position:fixed;
+    inset:0;
+    background:rgba(20,20,18,.72);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:10;
+  }
+
+  .modal-card{
+    width:min(560px,100%);
+    background:#fffaf0;
+    border-radius:22px;
+    padding:26px;
+    border:4px solid #3e382e;
+    box-shadow:0 24px 70px rgba(0,0,0,.35);
+    text-align:center;
+  }
+
+  .modal h2{
+    font-size:clamp(28px,5vw,48px);
+    margin:0 0 10px;
+  }
+
+  .modal p{font-size:18px;line-height:1.5}
+  .hidden{display:none}
+
+  @media (max-width:840px){
+    main{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>🐑 Save the Sheep!</h1>
+      <div class="subtitle">Shepherd vs. the Wolf</div>
+    </div>
+    <div class="status">
+      <div class="pill">Sheep saved: <span id="saved">0</span>/3</div>
+      <div class="pill">Dog: <span id="dogStatus">Not found</span></div>
+      <div class="pill">Time: <span id="time">120</span>s</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="game-wrap">
+      <canvas id="game" width="800" height="600"></canvas>
+    </section>
+
+    <aside class="side">
+      <h2>Your mission</h2>
+      <p>Find the hay, rescue the herding dog and lead the sheep safely to the barn. In easy mode, the wolf waits before moving and walks very slowly.</p>
+
+      <div class="objective">
+        Bring all 3 sheep to the barn. You have 120 seconds, a long head start, and the dog gives you one extra chance.
+      </div>
+
+      <strong>Controls</strong>
+      <p>Use the arrow keys, WASD, or the buttons below.</p>
+
+      <div class="legend">
+        <div><span class="icon">🧑‍🌾</span> You, the shepherd</div>
+        <div><span class="icon">🐑</span> Sheep to rescue</div>
+        <div><span class="icon">🐕</span> Herding dog protection</div>
+        <div><span class="icon">🌾</span> Hay opens the fence</div>
+        <div><span class="icon">🐺</span> Avoid the wolf</div>
+        <div><span class="icon">🏠</span> Barn</div>
+      </div>
+
+      <div class="controls">
+        <span></span><button data-dir="up">▲</button><span></span>
+        <button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button>
+      </div>
+
+      <div id="message">Collect the hay first. It will help you pass the wooden fence.</div>
+      <button class="secondary" id="restart">Restart game</button>
+    </aside>
+  </main>
+</div>
+
+<div class="modal" id="startModal">
+  <div class="modal-card">
+    <h2>Save the Sheep!</h2>
+    <p>
+      A wolf has been seen prowling around the farm, but you have time to prepare. You are the shepherd.
+      Lead the sheep and lambs safely to the barn without letting the wolf catch them.
+    </p>
+    <button id="startBtn">Start the challenge</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="endModal">
+  <div class="modal-card">
+    <h2 id="endTitle">You win!</h2>
+    <p id="endText"></p>
+    <button id="playAgain">Play again</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const TILE = 50;
+const COLS = 16;
+const ROWS = 12;
+
+const grid = [
+  "################",
+  "#P....#.....S..#",
+  "#.##..#.####...#",
+  "#..H..#....#...#",
+  "#.###.####.#.#.#",
+  "#.....F....#.#.#",
+  "###.#####..#...#",
+  "#...#..D...###.#",
+  "#.#.#.####.....#",
+  "#.#...#...S.##.#",
+  "#...S.....W...B#",
+  "################"
+];
+
+let player, wolf, dog, hay, barn, sheep, fence;
+let saved = 0;
+let hasHay = false;
+let hasDog = false;
+let running = false;
+let gameOver = false;
+let timeLeft = 120;
+let timerId = null;
+let wolfTick = 0;
+let playerMoves = 0;
+let shieldUsed = false;
+let message = document.getElementById('message');
+
+function parseMap(){
+  sheep = [];
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+      const c = grid[y][x];
+      if(c==='P') player={x,y};
+      if(c==='W') wolf={x,y};
+      if(c==='D') dog={x,y,collected:false};
+      if(c==='H') hay={x,y,collected:false};
+      if(c==='B') barn={x,y};
+      if(c==='S') sheep.push({x,y,following:false,saved:false});
+      if(c==='F') fence={x,y,open:false};
+    }
+  }
+}
+
+function reset(){
+  clearInterval(timerId);
+  parseMap();
+  saved=0;
+  hasHay=false;
+  hasDog=false;
+  running=false;
+  gameOver=false;
+  timeLeft=120;
+  wolfTick=0;
+  playerMoves=0;
+  shieldUsed=false;
+  document.getElementById('saved').textContent=saved;
+  document.getElementById('dogStatus').textContent='Not found';
+  document.getElementById('time').textContent=timeLeft;
+  message.textContent='Easy mode: the wolf will wait before it starts moving. Collect the hay first.';
+  draw();
+}
+
+function startGame(){
+  document.getElementById('startModal').classList.add('hidden');
+  document.getElementById('endModal').classList.add('hidden');
+  running=true;
+  timerId=setInterval(()=>{
+    if(!running) return;
+    timeLeft--;
+    document.getElementById('time').textContent=timeLeft;
+    if(timeLeft<=0) finish(false,'Time is up! The wolf reached the flock.');
+  },1000);
+}
+
+function isWall(x,y){
+  if(x<0||x>=COLS||y<0||y>=ROWS) return true;
+  if(grid[y][x]==='#') return true;
+  if(fence && x===fence.x && y===fence.y && !fence.open) return true;
+  return false;
+}
+
+function tryMove(dx,dy){
+  if(!running || gameOver) return;
+  const nx=player.x+dx, ny=player.y+dy;
+
+  if(fence && nx===fence.x && ny===fence.y && !fence.open){
+    if(hasHay){
+      fence.open=true;
+      message.textContent='You used the hay to lure the sheep through the wooden fence!';
+    }else{
+      message.textContent='The wooden fence is closed. Find the hay first.';
+      return;
+    }
+  }
+
+  if(isWall(nx,ny)) return;
+
+  player.x=nx; player.y=ny;
+  collectItems();
+  updateFollowingSheep();
+  checkBarn();
+
+  playerMoves++;
+  wolfTick++;
+
+  // Easy mode: the wolf gives the player a head start.
+  if(playerMoves === 10){
+    message.textContent='The wolf has started moving, but it is still very slow.';
+  }
+
+  const wolfInterval = hasDog ? 8 : 4;
+  if(playerMoves > 10 && wolfTick % wolfInterval === 0) moveWolf();
+
+  checkCollision();
+  draw();
+}
+
+function collectItems(){
+  if(!hay.collected && player.x===hay.x && player.y===hay.y){
+    hay.collected=true;
+    hasHay=true;
+    message.textContent='Hay collected! Now you can open the wooden fence.';
+  }
+
+  if(!dog.collected && player.x===dog.x && player.y===dog.y){
+    dog.collected=true;
+    hasDog=true;
+    document.getElementById('dogStatus').textContent='With you';
+    message.textContent='The herding dog joined you. The wolf is now slower!';
+  }
+
+  for(const s of sheep){
+    if(!s.saved && !s.following && manhattan(player,s)<=1){
+      s.following=true;
+      message.textContent='A sheep is following you. Lead it to the barn!';
+    }
+  }
+}
+
+function updateFollowingSheep(){
+  for(const s of sheep){
+    if(s.following && !s.saved){
+      const dx=player.x-s.x, dy=player.y-s.y;
+      if(Math.abs(dx)+Math.abs(dy)>1){
+        const options=[];
+        if(Math.abs(dx)>=Math.abs(dy)) options.push([Math.sign(dx),0],[0,Math.sign(dy)]);
+        else options.push([0,Math.sign(dy)],[Math.sign(dx),0]);
+        for(const [mx,my] of options){
+          if(!isWall(s.x+mx,s.y+my)){
+            s.x+=mx; s.y+=my; break;
+          }
+        }
+      }
+    }
+  }
+}
+
+function checkBarn(){
+  for(const s of sheep){
+    if(!s.saved && s.following && manhattan(s,barn)<=1 && manhattan(player,barn)<=2){
+      s.saved=true;
+      s.following=false;
+      saved++;
+      document.getElementById('saved').textContent=saved;
+      message.textContent=`Sheep saved! ${3-saved} remaining.`;
+    }
+  }
+  if(saved===3) finish(true,'All sheep are safe inside the barn. Excellent work, shepherd!');
+}
+
+function moveWolf(){
+
+  // Easy mode: the wolf only follows the shepherd, not the sheep.
+  const target = player;
+
+  const moves=[
+    [Math.sign(target.x-wolf.x),0],
+    [0,Math.sign(target.y-wolf.y)]
+  ].sort(()=>Math.random()-.5);
+
+  for(const [dx,dy] of moves){
+    if((dx!==0||dy!==0) && !isWall(wolf.x+dx,wolf.y+dy)){
+      wolf.x+=dx; wolf.y+=dy; break;
+    }
+  }
+}
+
+function checkCollision(){
+  if(player.x===wolf.x && player.y===wolf.y){
+    if(hasDog && !shieldUsed){
+      shieldUsed = true;
+      wolf.x = 12;
+      wolf.y = 10;
+      message.textContent='Your herding dog scared the wolf away! You got a second chance.';
+      return;
+    }
+    finish(false,'The wolf caught the shepherd. Try again — you have plenty of time.');
+  }
+}
+
+function manhattan(a,b){
+  return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+}
+
+function finish(win,text){
+  running=false;
+  gameOver=true;
+  clearInterval(timerId);
+  document.getElementById('endTitle').textContent=win?'🎉 You saved the flock!':'🐺 Game over';
+  document.getElementById('endText').textContent=text;
+  document.getElementById('endModal').classList.remove('hidden');
+}
+
+function drawTile(x,y,fill){
+  ctx.fillStyle=fill;
+  ctx.fillRect(x*TILE,y*TILE,TILE,TILE);
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+      drawTile(x,y,(x+y)%2===0?'#8db76d':'#85ad68');
+      if(grid[y][x]==='#'){
+        drawTile(x,y,'#46683f');
+        ctx.fillStyle='#365333';
+        ctx.fillRect(x*TILE+8,y*TILE+8,TILE-16,TILE-16);
+      }
+    }
+  }
+
+  // decorative paths
+  ctx.globalAlpha=.22;
+  ctx.fillStyle='#d8c189';
+  ctx.fillRect(1*TILE,10*TILE,14*TILE,TILE);
+  ctx.fillRect(14*TILE,8*TILE,TILE,3*TILE);
+  ctx.globalAlpha=1;
+
+  drawEmoji(barn.x,barn.y,'🏠',40);
+
+  if(!hay.collected) drawEmoji(hay.x,hay.y,'🌾',34);
+  if(!dog.collected) drawEmoji(dog.x,dog.y,'🐕',36);
+
+  if(fence){
+    if(fence.open){
+      ctx.fillStyle='#b78354';
+      ctx.fillRect(fence.x*TILE+5,fence.y*TILE+22,15,6);
+      ctx.fillRect(fence.x*TILE+30,fence.y*TILE+22,15,6);
+    }else{
+      ctx.fillStyle='#8c5b32';
+      ctx.fillRect(fence.x*TILE+6,fence.y*TILE+10,7,32);
+      ctx.fillRect(fence.x*TILE+37,fence.y*TILE+10,7,32);
+      ctx.fillRect(fence.x*TILE+8,fence.y*TILE+17,34,6);
+      ctx.fillRect(fence.x*TILE+8,fence.y*TILE+31,34,6);
+    }
+  }
+
+  for(const s of sheep){
+    if(!s.saved) drawEmoji(s.x,s.y,s.following?'🐑':'🐏',36);
+  }
+
+  drawEmoji(wolf.x,wolf.y,'🐺',38);
+  drawEmoji(player.x,player.y,'🧑‍🌾',38);
+
+  if(hasDog){
+    ctx.fillStyle='rgba(255,255,255,.8)';
+    ctx.beginPath();
+    ctx.arc(player.x*TILE+40,player.y*TILE+12,10,0,Math.PI*2);
+    ctx.fill();
+    ctx.font='18px serif';
+    ctx.fillText('🐕',player.x*TILE+31,player.y*TILE+18);
+  }
+}
+
+function drawEmoji(x,y,emoji,size){
+  ctx.font=`${size}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(emoji,x*TILE+TILE/2,y*TILE+TILE/2+1);
+}
+
+document.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(['arrowup','w'].includes(k)) tryMove(0,-1);
+  if(['arrowdown','s'].includes(k)) tryMove(0,1);
+  if(['arrowleft','a'].includes(k)) tryMove(-1,0);
+  if(['arrowright','d'].includes(k)) tryMove(1,0);
+});
+
+document.querySelectorAll('[data-dir]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const d=btn.dataset.dir;
+    if(d==='up') tryMove(0,-1);
+    if(d==='down') tryMove(0,1);
+    if(d==='left') tryMove(-1,0);
+    if(d==='right') tryMove(1,0);
+  });
+});
+
+document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('restart').addEventListener('click',()=>{reset();startGame();});
+document.getElementById('playAgain').addEventListener('click',()=>{reset();startGame();});
+
+reset();
+</script>
+</body>
+</html>
