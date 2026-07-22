@@ -430,6 +430,81 @@
     display:block;
   }
 
+
+  .controls button{
+    min-width:64px;
+    min-height:58px;
+    font-size:26px;
+    touch-action:manipulation;
+  }
+
+  @media (min-width:841px){
+    .controls{
+      grid-template-columns:repeat(3,68px);
+    }
+
+    .controls button{
+      width:68px;
+      height:60px;
+    }
+  }
+
+
+  .under-board-controls{
+    margin-top:12px;
+    background:#fffaf0;
+    border:2px solid #d4bea0;
+    border-radius:16px;
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  .under-board-title{
+    font-weight:800;
+    font-size:16px;
+    margin-bottom:4px;
+  }
+
+  .under-board-help{
+    font-size:14px;
+    text-align:center;
+    margin-bottom:10px;
+  }
+
+  .under-board-controls .controls{
+    margin-top:0;
+  }
+
+  @media (max-width:840px){
+    .under-board-controls{
+      margin-top:10px;
+      padding:12px 10px;
+      border-radius:14px;
+    }
+
+    .under-board-title{
+      font-size:15px;
+    }
+
+    .under-board-help{
+      font-size:13px;
+      margin-bottom:8px;
+    }
+
+    .under-board-controls .controls{
+      grid-template-columns:repeat(3,78px);
+      gap:10px;
+    }
+
+    .under-board-controls .controls button{
+      width:78px;
+      height:66px;
+      font-size:30px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -450,8 +525,20 @@
     <section class="game-wrap">
       <canvas id="game" width="800" height="600"></canvas>
       <div class="board-tools">
-        <button id="fitScreenBtn">⛶ Tabuleiro em tela cheia</button>
+        <button id="fitScreenBtn">⛶ Aumentar tabuleiro</button>
         <button id="exitScreenBtn" class="hidden">✕ Sair da tela cheia</button>
+      </div>
+      <div class="under-board-controls">
+        <div class="under-board-title">Controles</div>
+        <div class="under-board-help">Use as setas abaixo para mover o personagem.</div>
+
+
+      <div class="controls">
+        <span></span><button data-dir="up">▲</button><span></span>
+        <button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button>
+      </div>
+
+      
       </div>
     </section>
 
@@ -464,7 +551,7 @@
       </div>
 
       <strong>Controls</strong>
-      <p>Use the arrow keys, WASD, or the buttons below.</p>
+      <p>On mobile, the direction buttons are now under the board for easier use.</p>
 
       <div class="legend">
         <div><span class="icon">🧑‍🌾</span> You, the shepherd</div>
@@ -475,14 +562,7 @@
         <div><span class="icon">🏠</span> Barn</div>
       </div>
 
-      <div class="mobile-tip">📱 Toque em qualquer quadrado livre do tabuleiro. O personagem caminhará sozinho até lá. Você também pode usar as setas.</div>
-
-      <div class="controls">
-        <span></span><button data-dir="up">▲</button><span></span>
-        <button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button>
-      </div>
-
-      <div id="message">Collect the hay first. It will help you pass the wooden fence.</div>
+      <div class="mobile-tip">📱 Use as setas grandes para direcionar o personagem, um quadrado de cada vez.</div><div id="message">Collect the hay first. It will help you pass the wooden fence.</div>
       <button class="secondary" id="restart">Restart game</button>
     </aside>
   </main>
@@ -542,8 +622,7 @@ let timerId = null;
 let wolfTick = 0;
 let playerMoves = 0;
 let shieldUsed = false;
-let autoMoveTimer = null;
-let isAutoMoving = false;
+
 let message = document.getElementById('message');
 
 function parseMap(){
@@ -574,9 +653,7 @@ function reset(){
   wolfTick=0;
   playerMoves=0;
   shieldUsed=false;
-  clearInterval(autoMoveTimer);
-  autoMoveTimer=null;
-  isAutoMoving=false;
+
   document.getElementById('saved').textContent=saved;
   document.getElementById('dogStatus').textContent='Not found';
   document.getElementById('time').textContent=timeLeft;
@@ -603,9 +680,8 @@ function isWall(x,y){
   return false;
 }
 
-function tryMove(dx,dy,fromAuto=false){
+function tryMove(dx,dy){
   if(!running || gameOver) return;
-  if(isAutoMoving && !fromAuto) return;
   const nx=player.x+dx, ny=player.y+dy;
 
   if(fence && nx===fence.x && ny===fence.y && !fence.open){
@@ -826,18 +902,6 @@ document.querySelectorAll('[data-dir]').forEach(btn=>{
 });
 
 
-let touchStartX = 0;
-let touchStartY = 0;
-let lastTouchMove = 0;
-
-canvas.addEventListener('touchstart', (e) => {
-  if (!running || gameOver) return;
-  const touch = e.changedTouches[0];
-  touchStartX = touch.clientX;
-  touchStartY = touch.clientY;
-  e.preventDefault();
-}, { passive: false });
-
 
 document.querySelectorAll('[data-dir]').forEach(btn => {
   btn.addEventListener('touchstart', (e) => {
@@ -851,121 +915,6 @@ document.querySelectorAll('[data-dir]').forEach(btn => {
 });
 
 
-
-function getCanvasTileFromEvent(clientX, clientY){
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  const x = Math.floor(((clientX - rect.left) * scaleX) / TILE);
-  const y = Math.floor(((clientY - rect.top) * scaleY) / TILE);
-  return {x, y};
-}
-
-function findPath(start, goal){
-  if(isWall(goal.x, goal.y)) return null;
-
-  const queue = [{x:start.x, y:start.y}];
-  const visited = Array.from({length:ROWS}, () => Array(COLS).fill(false));
-  const prev = Array.from({length:ROWS}, () => Array(COLS).fill(null));
-  visited[start.y][start.x] = true;
-
-  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-
-  while(queue.length){
-    const current = queue.shift();
-    if(current.x === goal.x && current.y === goal.y) break;
-
-    for(const [dx,dy] of dirs){
-      const nx = current.x + dx;
-      const ny = current.y + dy;
-      if(nx<0 || nx>=COLS || ny<0 || ny>=ROWS || visited[ny][nx]) continue;
-
-      // Closed fence can still be used if the player already has hay.
-      const blockedByFence = fence && nx===fence.x && ny===fence.y && !fence.open && !hasHay;
-      if(grid[ny][nx] === '#' || blockedByFence) continue;
-
-      visited[ny][nx] = true;
-      prev[ny][nx] = current;
-      queue.push({x:nx,y:ny});
-    }
-  }
-
-  if(!visited[goal.y][goal.x]) return null;
-
-  const path = [];
-  let cur = goal;
-  while(cur.x !== start.x || cur.y !== start.y){
-    path.push(cur);
-    cur = prev[cur.y][cur.x];
-  }
-  path.reverse();
-  return path;
-}
-
-function moveToTile(targetX, targetY){
-  if(!running || gameOver || isAutoMoving) return;
-  if(targetX===player.x && targetY===player.y) return;
-
-  const path = findPath(player, {x:targetX,y:targetY});
-  if(!path || !path.length){
-    message.textContent = 'Não existe um caminho livre até esse quadrado.';
-    return;
-  }
-
-  isAutoMoving = true;
-  message.textContent = 'O pastor está caminhando até o quadrado escolhido...';
-
-  autoMoveTimer = setInterval(() => {
-    if(!running || gameOver || !path.length){
-      clearInterval(autoMoveTimer);
-      autoMoveTimer = null;
-      isAutoMoving = false;
-      return;
-    }
-
-    const next = path.shift();
-    const dx = next.x - player.x;
-    const dy = next.y - player.y;
-    tryMove(dx, dy, true);
-
-    if(!path.length){
-      clearInterval(autoMoveTimer);
-      autoMoveTimer = null;
-      isAutoMoving = false;
-    }
-  }, 170);
-}
-
-canvas.addEventListener('click', (e) => {
-  if('ontouchstart' in window) return;
-  const tile = getCanvasTileFromEvent(e.clientX, e.clientY);
-  moveToTile(tile.x, tile.y);
-});
-
-canvas.addEventListener('touchend', (e) => {
-  if(!running || gameOver) return;
-
-  const touch = e.changedTouches[0];
-  const dx = touch.clientX - touchStartX;
-  const dy = touch.clientY - touchStartY;
-  const distance = Math.hypot(dx,dy);
-
-  // A short touch is treated as selecting a square.
-  if(distance < 22){
-    const tile = getCanvasTileFromEvent(touch.clientX, touch.clientY);
-    moveToTile(tile.x, tile.y);
-    e.preventDefault();
-    return;
-  }
-
-  if(Math.abs(dx) > Math.abs(dy)){
-    tryMove(dx > 0 ? 1 : -1, 0);
-  }else{
-    tryMove(0, dy > 0 ? 1 : -1);
-  }
-
-  e.preventDefault();
-}, { passive:false });
 
 const fitScreenBtn = document.getElementById('fitScreenBtn');
 const exitScreenBtn = document.getElementById('exitScreenBtn');
