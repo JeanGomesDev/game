@@ -429,7 +429,7 @@ body.board-fullscreen
     <div class="status">
       <div class="pill">Sheep saved: <span id="saved">0</span>/3</div>
       <div class="pill">Dog: <span id="dogStatus">Not found</span></div>
-      <div class="pill">Time: <span id="time">120</span>s</div>
+      <div class="pill">Time: <span id="time">90</span>s</div>
     </div>
   </header>
 
@@ -454,7 +454,7 @@ body.board-fullscreen
       <p>Find the hay, rescue the herding dog and lead the sheep safely to the barn. In easy mode, the wolf waits before moving and walks very slowly.</p>
 
       <div class="objective">
-        Bring all 3 sheep to the barn. You have 120 seconds, a long head start, and the dog gives you one extra chance.
+        Bring all 3 sheep to the barn. You have 90 seconds, a long head start, and the dog gives you one extra chance.
       </div>
 
       <strong>Controls</strong>
@@ -522,7 +522,7 @@ let hasHay = false;
 let hasDog = false;
 let running = false;
 let gameOver = false;
-let timeLeft = 120;
+let timeLeft = 90;
 let timerId = null;
 let wolfTick = 0;
 let playerMoves = 0;
@@ -554,7 +554,7 @@ function reset(){
   hasDog=false;
   running=false;
   gameOver=false;
-  timeLeft=120;
+  timeLeft=90;
   wolfTick=0;
   playerMoves=0;
   shieldUsed=false;
